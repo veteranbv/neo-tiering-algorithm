@@ -59,12 +59,12 @@ for _ in range(1000):
     sender, recipient = determine_sender_and_recipient(label)
     subject = generate_subject(label)
     emails.append({
-        "Email ID": email_id,
-        "Date": date.strftime("%Y-%m-%d %H:%M:%S"),
-        "Sender": sender,
-        "Recipient(s)": recipient,
-        "Subject": subject,
-        "Labels": label
+        "email": email_id,
+        "date": date.strftime("%Y-%m-%d %H:%M:%S"),
+        "sender": sender,
+        "recipient": recipient,
+        "subject": subject,
+        "labels": label
     })
 
 # Create directory if it doesn't exist
@@ -75,7 +75,7 @@ if not os.path.exists(directory):
 # Write data to CSV file
 csv_file = os.path.join(directory, "john_doe_emails_network.csv")
 with open(csv_file, "w", newline="") as csvfile:
-    fieldnames = ["Email ID", "Date", "Sender", "Recipient(s)", "Subject", "Labels"]
+    fieldnames = ["email", "date", "sender", "recipient", "subject", "labels"]
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
     writer.writerows(emails)
