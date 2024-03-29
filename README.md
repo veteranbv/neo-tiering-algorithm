@@ -83,19 +83,10 @@ python generate_email_network_dataset.py
 2. Execute the following Cypher query, replacing the path with the actual location of your CSV file:
 
    ```cypher
-    CALL {
-        WITH 'file:///path/to/john_doe_emails_network.csv' AS csv_file
-        LOAD CSV WITH HEADERS FROM csv_file AS row
-    
-        // Create EmailAddress nodes if they don't exist
-        MERGE (sender:email {address: row.sender})
-        MERGE (recipient:email {address: row.recipient})
-    
-        // Create SENT relationships with properties
-        CREATE (sender)-[:SENT {date: row.date, subject: row.subject, labels: row.labels}]->(recipient)
-    }
-    YIELD batches, totalRows, errorMessages
-    RETURN batches, totalRows, errorMessages
+    LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/veteranbv/neo-tiering-algorithm/main/data/john_doe_emails_network.csv' AS row
+    MERGE (sender:Email {address: row.sender})
+    MERGE (recipient:Email {address: row.recipient})
+    CREATE (sender)-[:SENT {id: row.email, date: apoc.date.parse(row.date, 'ms', 'yyyy-MM-dd HH:mm:ss'), subject: row.subject, labels: row.labels}]->(recipient)
    ```
 
 **Notes:**
@@ -123,13 +114,12 @@ This section describes the Cypher queries used to implement the tiering algorith
 ### Tier 1: Direct Communication Partners
 
 ```cypher
-MATCH (johnDoe:email {address: 'john.doe@personal.com'})
-MATCH (johnDoe)-[sentByJohnDoe:SENT]->(tier1Node)-[sentToJohnDoe:SENT]->(johnDoe)
+MATCH (johnDoe:Email {address: 'john.doe@personal.com'})
+MATCH (johnDoe)-[sentByJohnDoe:SENT]->(tier1Node:Email)-[sentToJohnDoe:SENT]->(johnDoe)
 WITH tier1Node, 
-     COUNT(sentByJohnDoe) AS sentByJohnDoeCount, 
-     COUNT(sentToJohnDoe) AS sentToJohnDoeCount,
-     COUNT(*) AS totalCommunications
-SET tier1Node:Tier1, tier1Node.score = totalCommunications * (sentByJohnDoeCount * sentToJohnDoeCount) / totalCommunications^2
+     COUNT(DISTINCT sentByJohnDoe) AS sentByJohnDoeCount, 
+     COUNT(DISTINCT sentToJohnDoe) AS sentToJohnDoeCount
+SET tier1Node:Tier1, tier1Node.score = sentByJohnDoeCount * sentToJohnDoeCount
 RETURN tier1Node
 ORDER BY tier1Node.score DESC
 ```
@@ -137,8 +127,8 @@ ORDER BY tier1Node.score DESC
 ### Tier 2: Recipients of Information from John Doe
 
 ```cypher
-MATCH (johnDoe:email {address: 'john.doe@personal.com'})
-MATCH (johnDoe)-[sentByJohnDoe:SENT]->(tier2Node)
+MATCH (johnDoe:Email {address: 'john.doe@personal.com'})
+MATCH (johnDoe)-[sentByJohnDoe:SENT]->(tier2Node:Email)
 WHERE NOT EXISTS ((tier2Node)-[:SENT]->(johnDoe))
 WITH tier2Node, COUNT(sentByJohnDoe) AS sentByJohnDoeCount
 SET tier2Node:Tier2, tier2Node.score = sentByJohnDoeCount
@@ -149,8 +139,8 @@ ORDER BY tier2Node.score DESC
 ### Tier 3: Senders of Information to John Doe
 
 ```cypher
-MATCH (johnDoe:email {address: 'john.doe@personal.com'})
-MATCH (tier3Node)-[sentToJohnDoe:SENT]->(johnDoe)
+MATCH (johnDoe:Email {address: 'john.doe@personal.com'})
+MATCH (tier3Node:Email)-[sentToJohnDoe:SENT]->(johnDoe)
 WHERE NOT EXISTS ((johnDoe)-[:SENT]->(tier3Node))
 WITH tier3Node, COUNT(sentToJohnDoe) AS sentToJohnDoeCount
 SET tier3Node:Tier3, tier3Node.score = sentToJohnDoeCount
