@@ -2,6 +2,8 @@
 
 This project explores email communication networks using Neo4j, a graph database well-suited for representing and analyzing relationships between entities.
 
+![Email Network Visualization](images/EmailNetworkViz.jpg)
+
 ## Overview
 
 The project focuses on:
