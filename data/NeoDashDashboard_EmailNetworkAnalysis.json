@@ -1,0 +1,238 @@
+{
+  "title": "Finding the Needle in the Haystack - Critical Email Network Analysis",
+  "version": "2.4",
+  "settings": {
+    "pagenumber": 0,
+    "editable": true,
+    "fullscreenEnabled": false,
+    "parameters": {
+      "neodash_email_address": "john.doe@personal.com",
+      "neodash_email_address_display": "john.doe@personal.com",
+      "undefined": "",
+      "undefined_display": "",
+      "neodash_tiers": "Tier1",
+      "neodash_tiers_display": "Tier1"
+    },
+    "theme": "light",
+    "queryTimeLimit": 3000,
+    "disableRowLimiting": true
+  },
+  "pages": [
+    {
+      "title": "Main Page",
+      "reports": [
+        {
+          "id": "ae142158-cfa7-4e97-b2e7-f43b8edda33c",
+          "title": "The Needle - Tiered Communication Network (Evaluating Strongest Bi-Directional Communicants)",
+          "query": "// Step 1: Start with the source node\nMATCH (source:Email { address: $neodash_email_address })\nWITH source\n\n// Step 2: First optional relationship (tier1) with a limit of 50 nodes\nOPTIONAL MATCH (source)-[rtier1:SENT]->(tier1:Email)-[r2tier1:SENT]->(source)\nWITH source, collect(DISTINCT tier1)[..50] as tier1_nodes \n\n// Step 3: Second optional relationship (tier2) with a limit of 50 nodes\nOPTIONAL MATCH (source)-[rtier2:SENT]->(tier2:Email)\nWHERE NOT EXISTS ((tier2)-[:SENT]->(source))\nWITH source, tier1_nodes, collect(DISTINCT tier2)[..50] as tier2_nodes\n\n// Step 4: Third optional relationship (tier3) with a limit of 50 nodes\nOPTIONAL MATCH (tier3:Email)-[rtier3:SENT]->(source)\nWHERE NOT EXISTS ((source)-[:SENT]->(tier3))\nWITH source, tier1_nodes, tier2_nodes, collect(DISTINCT tier3)[..50] as tier3_nodes\n\n// Debug: Count nodes in each tier\nWITH source, \n     tier1_nodes, size(tier1_nodes) as tier1_count,\n     tier2_nodes, size(tier2_nodes) as tier2_count,\n     tier3_nodes, size(tier3_nodes) as tier3_count\n\n// Step 5: Create intermediate nodes for all tiers\nCALL apoc.create.vNode(['Tier1', 'Email'], {address: 'Tier1Intermediate', score: 1}) YIELD node AS intermediateNodeTier1\nCALL apoc.create.vNode(['Tier2', 'Email'], {address: 'Tier2Intermediate', score: 1}) YIELD node AS intermediateNodeTier2\nCALL apoc.create.vNode(['Tier3', 'Email'], {address: 'Tier3Intermediate', score: 1}) YIELD node AS intermediateNodeTier3\n\n// Step 6: Create virtual relationships from source to intermediate nodes\nCALL apoc.create.vRelationship(source, 'SENT', {}, intermediateNodeTier1) YIELD rel as vrelSourceToIntermediateTier1\nCALL apoc.create.vRelationship(source, 'SENT', {}, intermediateNodeTier2) YIELD rel as vrelSourceToIntermediateTier2\nCALL apoc.create.vRelationship(source, 'SENT', {}, intermediateNodeTier3) YIELD rel as vrelSourceToIntermediateTier3\n\n// Step 7: Create virtual relationships from intermediate nodes to tier nodes\nWITH *, \n     [tier1 IN tier1_nodes | apoc.create.vRelationship(intermediateNodeTier1, 'SENT', {}, tier1)] as vrelIntermediateToTier1s,\n     [tier2 IN tier2_nodes | apoc.create.vRelationship(intermediateNodeTier2, 'SENT', {}, tier2)] as vrelIntermediateToTier2s,\n     [tier3 IN tier3_nodes | apoc.create.vRelationship(intermediateNodeTier3, 'SENT', {}, tier3)] as vrelIntermediateToTier3s\n\n// Final output with virtual relationships and debug information\nRETURN \n    source, \n    vrelSourceToIntermediateTier1, intermediateNodeTier1, vrelIntermediateToTier1s, tier1_nodes, tier1_count,\n    vrelSourceToIntermediateTier2, intermediateNodeTier2, vrelIntermediateToTier2s, tier2_nodes, tier2_count,\n    vrelSourceToIntermediateTier3, intermediateNodeTier3, vrelIntermediateToTier3s, tier3_nodes, tier3_count",
+          "width": 24,
+          "height": 5,
+          "x": 0,
+          "y": 8,
+          "type": "graph3d",
+          "selection": {
+            "Email": "address",
+            "SENT": "(label)",
+            "Tier1": "address",
+            "Tier2": "address",
+            "Tier3": "address"
+          },
+          "settings": {
+            "relColorProp": "score",
+            "layout": "tree-top-down",
+            "backgroundColor": "#FFFEFF",
+            "defaultRelColor": "#B819AD",
+            "graphDepthSep": 50
+          },
+          "schema": [
+            [
+              "Email",
+              "address",
+              "score"
+            ],
+            [
+              "SENT"
+            ],
+            [
+              "Tier1",
+              "score",
+              "address"
+            ],
+            [
+              "Tier2",
+              "score",
+              "address"
+            ],
+            [
+              "Tier3",
+              "score",
+              "address"
+            ]
+          ]
+        },
+        {
+          "id": "1af7431b-d5c9-4b06-961a-009cd119de25",
+          "title": "Distinct Email Correspondence (SENT)",
+          "query": "MATCH (source:Email { address: $neodash_email_address })-[]->(target:Email)\nRETURN COUNT(DISTINCT target)",
+          "width": 8,
+          "height": 2,
+          "x": 7,
+          "y": 0,
+          "type": "value",
+          "selection": {},
+          "settings": {},
+          "schema": []
+        },
+        {
+          "id": "8fe46afd-cb28-4ca5-a674-00009307cd1b",
+          "title": "Source Email Address",
+          "query": "MATCH (n:`Email`) \nWHERE toLower(toString(n.`address`)) CONTAINS toLower($input) \nRETURN DISTINCT n.`address` as value,  n.`address` as display ORDER BY size(toString(value)) ASC LIMIT 5",
+          "width": 7,
+          "height": 2,
+          "x": 0,
+          "y": 0,
+          "type": "select",
+          "selection": {},
+          "settings": {
+            "type": "Node Property",
+            "entityType": "Email",
+            "propertyType": "address",
+            "propertyTypeDisplay": "address",
+            "parameterName": "neodash_email_address"
+          },
+          "schema": []
+        },
+        {
+          "id": "a7b68c62-d824-4381-8e50-f02ce4f18a20",
+          "title": "Tiering (Strongest Bi-Directional Communicants)",
+          "query": "MATCH (john:Email {address: 'john.doe@personal.com'})\nCALL {\n    WITH john\n    MATCH (john)-[sentByJohn:SENT]->(target:Email)\n    WITH john, target, count(sentByJohn) AS countSentByJohn\n    OPTIONAL MATCH (target)-[sentToJohn:SENT]->(john)\n    WITH john, target, countSentByJohn, count(sentToJohn) AS countSentToJohn\n    WITH john, target.address AS communicantEmailAddress, \n         CASE \n             WHEN countSentByJohn > 0 AND countSentToJohn > 0 THEN 1\n             WHEN countSentByJohn > 0 AND countSentToJohn = 0 THEN 2\n             ELSE 3\n         END AS tier,\n         countSentByJohn,\n         countSentToJohn,\n         countSentByJohn + countSentToJohn AS totalCountOfEmailInteractions,\n         CASE\n             WHEN countSentByJohn = 0 OR countSentToJohn = 0 THEN 0\n             ELSE toFloat(CASE WHEN countSentByJohn < countSentToJohn \n                               THEN countSentByJohn \n                               ELSE countSentToJohn \n                          END) / \n                  CASE WHEN countSentByJohn > countSentToJohn \n                       THEN countSentByJohn \n                       ELSE countSentToJohn \n                  END\n         END AS communicationBalanceRatio\n    RETURN communicantEmailAddress, tier, countSentByJohn, countSentToJohn, totalCountOfEmailInteractions, communicationBalanceRatio\n\n    UNION\n\n    MATCH (sender:Email)-[sentToJohn:SENT]->(john)\n    WHERE NOT EXISTS((john)-[:SENT]->(sender))\n    WITH john, sender.address AS communicantEmailAddress, \n         count(sentToJohn) AS countSentToJohn\n    RETURN communicantEmailAddress, \n           3 AS tier, \n           0 AS countSentByJohn, \n           countSentToJohn,\n           countSentToJohn AS totalCountOfEmailInteractions,\n           0 AS communicationBalanceRatio\n}\nRETURN communicantEmailAddress, \n       tier, \n       countSentByJohn AS countOfEmailSentFromJohn, \n       countSentToJohn AS countOfEmailSentToJohn,\n       totalCountOfEmailInteractions,\n       communicationBalanceRatio\nORDER BY tier ASC, \n         countOfEmailSentFromJohn DESC, \n         countOfEmailSentToJohn DESC, \n         totalCountOfEmailInteractions DESC,\n         communicationBalanceRatio DESC",
+          "width": 24,
+          "height": 6,
+          "x": 0,
+          "y": 17,
+          "type": "table",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "794ddb88-a264-4a20-9012-76560be42c24",
+          "title": "Distinct Email Correspondence (RECEIVED)",
+          "query": "MATCH (source:Email { address: $neodash_email_address })<-[]-(target:Email)\nRETURN COUNT(DISTINCT target)",
+          "width": 9,
+          "height": 2,
+          "x": 15,
+          "y": 0,
+          "type": "value",
+          "selection": {},
+          "settings": {},
+          "schema": []
+        },
+        {
+          "id": "8fe38b1d-bf35-4197-9ecb-97f8c3e51650",
+          "title": "Priority Score (High recent activity / Balanced two-way communication / Frequent exchanges)",
+          "query": "MATCH (john:Email {address: 'john.doe@personal.com'})\nCALL {\n    WITH john\n    MATCH (john)-[sentByJohn:SENT]->(target:Email)\n    WITH john, target, collect(sentByJohn) AS sentByJohnList\n    OPTIONAL MATCH (target)-[sentToJohn:SENT]->(john)\n    WITH john, target, sentByJohnList, collect(sentToJohn) AS sentToJohnList\n    WITH john, target.address AS communicantEmailAddress, \n         sentByJohnList,\n         sentToJohnList,\n         size(sentByJohnList) AS countSentByJohn,\n         size(sentToJohnList) AS countSentToJohn\n    WITH communicantEmailAddress, sentByJohnList, sentToJohnList,\n         countSentByJohn, countSentToJohn,\n         countSentByJohn + countSentToJohn AS totalInteractions,\n         CASE \n             WHEN countSentByJohn > 0 AND countSentToJohn > 0 THEN 1\n             WHEN countSentByJohn > 0 AND countSentToJohn = 0 THEN 2\n             ELSE 3\n         END AS tier,\n         CASE\n             WHEN countSentByJohn = 0 OR countSentToJohn = 0 THEN 0\n             ELSE toFloat(CASE WHEN countSentByJohn < countSentToJohn \n                               THEN countSentByJohn \n                               ELSE countSentToJohn \n                          END) / \n                  CASE WHEN countSentByJohn > countSentToJohn \n                       THEN countSentByJohn \n                       ELSE countSentToJohn \n                  END\n         END AS communicationBalanceRatio\n    WITH *, \n         [email IN sentByJohnList | toFloat(email.date)] AS sentDates,\n         [email IN sentToJohnList | toFloat(email.date)] AS receivedDates\n    WITH *, \n         size([d IN sentDates WHERE d >= toFloat(datetime().epochMillis) - 30 * 24 * 60 * 60 * 1000]) +\n         size([d IN receivedDates WHERE d >= toFloat(datetime().epochMillis) - 30 * 24 * 60 * 60 * 1000]) AS recentInteractions,\n         CASE WHEN size(sentDates) > 1 \n              THEN reduce(s = 0.0, i IN range(1, size(sentDates)-1) | \n                   s + (sentDates[i] - sentDates[i-1]) / 3600000.0) / (size(sentDates)-1)\n              ELSE null \n         END AS avgTimeBetweenSent,\n         CASE WHEN size(receivedDates) > 1 \n              THEN reduce(s = 0.0, i IN range(1, size(receivedDates)-1) | \n                   s + (receivedDates[i] - receivedDates[i-1]) / 3600000.0) / (size(receivedDates)-1)\n              ELSE null \n         END AS avgTimeBetweenReceived\n    WITH *,\n         [email IN sentByJohnList | email.subject] AS sentSubjects,\n         [email IN sentToJohnList | email.subject] AS receivedSubjects,\n         [email IN sentByJohnList | email.labels] AS sentLabels,\n         [email IN sentToJohnList | email.labels] AS receivedLabels\n    RETURN communicantEmailAddress, \n           tier, \n           countSentByJohn, \n           countSentToJohn,\n           totalInteractions,\n           communicationBalanceRatio,\n           recentInteractions,\n           avgTimeBetweenSent,\n           avgTimeBetweenReceived,\n           sentSubjects,\n           receivedSubjects,\n           sentLabels,\n           receivedLabels,\n           (toFloat(recentInteractions) / totalInteractions * 100) +\n           (communicationBalanceRatio * 50) +\n           (CASE WHEN avgTimeBetweenSent IS NOT NULL AND avgTimeBetweenSent < 24 THEN 50 ELSE 0 END) +\n           (CASE WHEN avgTimeBetweenReceived IS NOT NULL AND avgTimeBetweenReceived < 24 THEN 50 ELSE 0 END) +\n           (CASE WHEN any(label IN sentLabels WHERE label CONTAINS 'urgent' OR label CONTAINS 'important') THEN 30 ELSE 0 END) +\n           (CASE WHEN any(label IN receivedLabels WHERE label CONTAINS 'urgent' OR label CONTAINS 'important') THEN 30 ELSE 0 END) AS priorityScore\n}\nRETURN *\nORDER BY priorityScore DESC\nLIMIT 20",
+          "width": 24,
+          "height": 7,
+          "x": 0,
+          "y": 27,
+          "type": "table",
+          "selection": {},
+          "settings": {},
+          "schema": []
+        },
+        {
+          "id": "cee89ce6-bad6-425f-bd86-703634ea51d7",
+          "title": "Communicant Tier Breakdown",
+          "query": "MATCH (john:Email {address: 'john.doe@personal.com'})\nCALL {\n    WITH john\n    MATCH (john)-[sentByJohn:SENT]->(target:Email)\n    WITH john, target, count(sentByJohn) AS countSentByJohn\n    OPTIONAL MATCH (target)-[sentToJohn:SENT]->(john)\n    WITH john, target, countSentByJohn, count(sentToJohn) AS countSentToJohn\n    WITH CASE \n             WHEN countSentByJohn > 0 AND countSentToJohn > 0 THEN 1\n             WHEN countSentByJohn > 0 AND countSentToJohn = 0 THEN 2\n             ELSE 3\n         END AS tier\n    RETURN tier, count(*) AS count\n    UNION\n    MATCH (sender:Email)-[:SENT]->(john)\n    WHERE NOT EXISTS((john)-[:SENT]->(sender))\n    RETURN 3 AS tier, count(*) AS count\n}\nRETURN tier, sum(count) AS totalCount\nORDER BY tier\n\n\n",
+          "width": 7,
+          "height": 4,
+          "x": 0,
+          "y": 13,
+          "type": "pie",
+          "selection": {
+            "index": "tier",
+            "value": "totalCount",
+            "key": "(none)"
+          },
+          "settings": {},
+          "schema": []
+        },
+        {
+          "id": "6924b8b6-e126-4655-ac48-7736ae32b6d7",
+          "title": "Daily Communication Frequency Over Time",
+          "query": "MATCH (john:Email {address: 'john.doe@personal.com'})\nCALL {\n    MATCH (john)-[sent:SENT]->()\n    RETURN date(datetime({epochMillis: toInteger(sent.date)})) AS date\n    UNION ALL\n    MATCH ()-[received:SENT]->(john)\n    RETURN date(datetime({epochMillis: toInteger(received.date)})) AS date\n}\nWITH date, count(*) AS count\nRETURN toString(date) AS category, count AS value\nORDER BY date",
+          "width": 17,
+          "height": 4,
+          "x": 7,
+          "y": 13,
+          "type": "bar",
+          "selection": {
+            "index": "category",
+            "value": "value",
+            "key": "(none)"
+          },
+          "settings": {},
+          "schema": []
+        },
+        {
+          "id": "cbfda1ce-afdd-440d-bb37-e89356905b91",
+          "title": "High-Priority Communicant Messages",
+          "query": "MATCH (john:Email {address: 'john.doe@personal.com'})\nCALL {\n    WITH john\n    MATCH (john)-[sentByJohn:SENT]->(target:Email)\n    WITH john, target, count(sentByJohn) AS countSentByJohn\n    OPTIONAL MATCH (target)-[sentToJohn:SENT]->(john)\n    WITH john, target.address AS communicantEmailAddress, \n         CASE \n             WHEN countSentByJohn > 0 AND count(sentToJohn) > 0 THEN 1\n             WHEN countSentByJohn > 0 AND count(sentToJohn) = 0 THEN 2\n             ELSE 3\n         END AS tier,\n         countSentByJohn,\n         count(sentToJohn) AS countSentToJohn,\n         countSentByJohn + count(sentToJohn) AS totalCountOfEmailInteractions,\n         CASE\n             WHEN countSentByJohn = 0 OR count(sentToJohn) = 0 THEN 0\n             ELSE toFloat(CASE WHEN countSentByJohn < count(sentToJohn) \n                               THEN countSentByJohn \n                               ELSE count(sentToJohn) \n                          END) / \n                  CASE WHEN countSentByJohn > count(sentToJohn) \n                       THEN countSentByJohn \n                       ELSE count(sentToJohn) \n                  END\n         END AS communicationBalanceRatio\n    RETURN communicantEmailAddress, tier, countSentByJohn, countSentToJohn, totalCountOfEmailInteractions, communicationBalanceRatio\n    ORDER BY tier ASC, \n             countSentByJohn DESC, \n             countSentToJohn DESC, \n             totalCountOfEmailInteractions DESC,\n             communicationBalanceRatio DESC\n    LIMIT 10\n}\nWITH john, communicantEmailAddress\nMATCH (communicant:Email {address: communicantEmailAddress})\nCALL {\n    WITH john, communicant\n    MATCH (john)-[sent:SENT]->(communicant)\n    RETURN sent.date AS datetime, sent.subject AS subject, sent.labels AS labels, 'Sent' AS direction\n    UNION ALL\n    MATCH (communicant)-[received:SENT]->(john)\n    RETURN received.date AS datetime, received.subject AS subject, received.labels AS labels, 'Received' AS direction\n}\nRETURN \n    communicantEmailAddress, \n    datetime({epochMillis: toInteger(datetime)}) AS datetime,\n    subject,\n    labels,\n    direction\nORDER BY communicantEmailAddress, datetime DESC\nLIMIT 100",
+          "width": 24,
+          "height": 4,
+          "x": 0,
+          "y": 23,
+          "type": "table",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "7da48185-06a8-43d2-85ab-c44cbfb480aa",
+          "title": "The Haystack",
+          "query": "// Start with the source node\nMATCH (source:Email {address: $neodash_email_address})\n\n// Find top 50 connections by total email volume (sent or received)\nMATCH (source)-[r:SENT]-(other:Email)\nWITH source, other, count(r) AS emailCount\nORDER BY emailCount DESC\nLIMIT 50\n\n// Collect the top connections\nWITH source, collect({node: other, count: emailCount}) AS topConnections\n\n// Create virtual relationships for visualization\nUNWIND topConnections AS connection\nCALL apoc.create.vRelationship(source, \"CONNECTS_TO\", {count: connection.count}, connection.node) YIELD rel AS vrel\n\n// Return the network components\nRETURN source, \n       [conn IN topConnections | conn.node] AS connectedEmails, \n       collect(vrel) AS relationships",
+          "width": 24,
+          "height": 6,
+          "x": 0,
+          "y": 2,
+          "type": "graph3d",
+          "selection": {
+            "Email": "address",
+            "CONNECTS_TO": "(label)"
+          },
+          "settings": {
+            "relColorProp": "score",
+            "layout": "tree-top-down",
+            "backgroundColor": "#FFFEFF",
+            "defaultRelColor": "#B819AD",
+            "graphDepthSep": 50
+          },
+          "schema": [
+            [
+              "Email",
+              "address"
+            ],
+            [
+              "CONNECTS_TO",
+              "count"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "parameters": {},
+  "extensions": {
+    "active": true,
+    "activeReducers": [],
+    "advanced-charts": {
+      "active": true
+    },
+    "styling": {
+      "active": true
+    },
+    "actions": {
+      "active": true
+    }
+  },
+  "uuid": "782b223d-116f-4fa3-9296-70dd4512cfa3"
+}
